@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: gpl-3.0-or-later
+// SPDX-License-Identifier: Gpl-3.0-or-later
 
 
 
@@ -10,7 +10,7 @@ abstract contract Context {
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
-        this; 
+        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
 }
@@ -90,7 +90,7 @@ library SafeMath {
     ) internal pure returns (uint256) {
         require(b > 0, errorMessage);
         uint256 c = a / b;
-  
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
 
         return c;
     }
@@ -282,6 +282,8 @@ interface IUniswapV2Factory {
 }
 
 
+// for pair
+
 interface IUniswapV2Pair {
     event Approval(
         address indexed owner,
@@ -387,6 +389,8 @@ interface IUniswapV2Pair {
 
     function initialize(address, address) external;
 }
+
+// for trade fees distrib
 
 interface IUniswapV2Router01 {
     function factory() external pure returns (address);
@@ -547,6 +551,8 @@ interface IUniswapV2Router01 {
         returns (uint256[] memory amounts);
 }
 
+
+
 interface IUniswapV2Router02 is IUniswapV2Router01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
@@ -595,24 +601,23 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-
-contract KittyShiba is Context, IERC20, Ownable {
+contract KittyShibax is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
-    address payable public marketingAddress;  
+    address payable public marketingAddress; 
         
-    address payable public buybackAddress;  
+    address payable public buybackAddress; 
         
-    address payable public teamAddress;  
+    address payable public teamAddress; 
         
-    address payable public developmentAddress;  
+    address payable public developmentAddress; 
         
     address payable public liquidityAddress =
-        payable(0x24b5a57E18e0c3E6D9a0eaE8cFf28e181F8f27E0);  
+        payable(0x000000000000000000000000000000000000dEaD); // Liquidity incentive Address blackhole
         
     address public immutable deadAddress =
-        0x000000000000000000000000000000000000dEaD;  
+        0x000000000000000000000000000000000000dEaD; // dead address
         
     mapping(address => uint256) private _rOwned;
     mapping(address => uint256) private _tOwned;
@@ -628,12 +633,12 @@ contract KittyShiba is Context, IERC20, Ownable {
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private constant _name = "KittyShiba Chingu";
+    string private constant _name = "Kitty Shiba";
     string private constant _symbol = "KSHIBA";
     uint8 private constant _decimals = 18;
 
 
-
+    // these values are pretty much arbitrary since they get overwritten for every txn, but the placeholders make it easier to work with current contract.
     uint256 private _taxFee;
     uint256 private _previousTaxFee = _taxFee;
 
@@ -646,19 +651,19 @@ contract KittyShiba is Context, IERC20, Ownable {
     uint256 private _buybackFee;
     uint256 private _previousBuyBackFee = _buybackFee;
 
-    uint256 public _buyTaxFee = 2;
+    uint256 public _buyTaxFee = 1;
     uint256 public _buyLiquidityFee = 2;
-    uint256 public _buyMarketingFee = 3;
+    uint256 public _buyMarketingFee = 5;
     uint256 public _buyBuybackFee = 1;
 
-    uint256 public _sellTaxFee = 3;
-    uint256 public _sellLiquidityFee = 3;
-    uint256 public _sellMarketingFee = 4;
+    uint256 public _sellTaxFee = 1;
+    uint256 public _sellLiquidityFee = 2;
+    uint256 public _sellMarketingFee = 5;
     uint256 public _sellBuybackFee = 1;
     
-    uint256 public tradingActiveBlock = 0; 
-    mapping(address => bool) public boughtEarly; 
-    uint256 public earlyBuyPenaltyEnd; 
+    uint256 public tradingActiveBlock = 0; // 0 means trading is not active
+    mapping(address => bool) public boughtEarly; // mapping to track addresses that buy within the first 2 blocks pay a 3x tax for 24 hours to sell
+    uint256 public earlyBuyPenaltyEnd; // determines when snipers/bots can sell without extra penalty
     
     uint256 private _liquidityTokensToSwap;
     uint256 private _marketingTokensToSwap;
@@ -668,12 +673,11 @@ contract KittyShiba is Context, IERC20, Ownable {
     
     bool private gasLimitActive = true;
     uint256 private gasPriceLimit = 50 * 1 gwei; 
-    uint256 private gasMaxLimit = 1000000 * 1 gwei; 
-    
+    uint256 private gasMaxLimit = 1000000 * 1 gwei; // gasLeft limit
 
     mapping (address => bool) public automatedMarketMakerPairs;
 
-    uint256 private minimumTokensBeforeSwap = _tTotal * 8 / 10000; // 0.08%
+    uint256 private minimumTokensBeforeSwap = _tTotal * 3 / 10000; // 0.03%
 
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;
@@ -711,7 +715,7 @@ contract KittyShiba is Context, IERC20, Ownable {
             
         developmentAddress = payable(owner());
         
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);   // pancakeswap router
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
 
         address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
@@ -836,7 +840,7 @@ contract KittyShiba is Context, IERC20, Ownable {
         return _tFeeTotal;
     }
     
-  
+    // once enabled, can never be turned off
     function enableTrading() external onlyOwner {
         tradingActive = true;
         swapAndLiquifyEnabled = true;
@@ -905,7 +909,7 @@ contract KittyShiba is Context, IERC20, Ownable {
 
     function excludeFromReward(address account) public onlyOwner {
         require(!_isExcluded[account], "Account is already excluded");
-        require(_excluded.length + 1 <= 30, "Cannot exclude more than 30 accounts. Include a previously excluded address.");
+        require(_excluded.length + 1 <= 100, "Cannot exclude more than 100 accounts.  Include a previously excluded address.");
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
         }
@@ -955,7 +959,7 @@ contract KittyShiba is Context, IERC20, Ownable {
             boughtEarly[to] = true;
         }
         
-      
+        // only use to prevent sniper buys in the first blocks.
         if (gasLimitActive && automatedMarketMakerPairs[from]) {
             require(tx.gasprice <= gasPriceLimit, "Gas price exceeds limit.");
             if(!inSwapAndLiquify && !_isExcludedFromFee[from] && !_isExcludedFromFee[to]) {
@@ -967,7 +971,7 @@ contract KittyShiba is Context, IERC20, Ownable {
         bool overMinimumTokenBalance = contractTokenBalance >=
             minimumTokensBeforeSwap;
 
-  
+        // Sell tokens for ETH
         if (
             !inSwapAndLiquify &&
             swapAndLiquifyEnabled &&
@@ -984,6 +988,7 @@ contract KittyShiba is Context, IERC20, Ownable {
 
         bool takeFee = true;
 
+        // If any account belongs to _isExcludedFromFee account then remove the fee
         if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
             takeFee = false;
         } else {
@@ -998,12 +1003,12 @@ contract KittyShiba is Context, IERC20, Ownable {
                 removeAllFee();
                 _taxFee = _sellTaxFee;
                 _liquidityFee = _sellLiquidityFee + _sellMarketingFee + _sellBuybackFee;
-                // No penalty freedom.
-                if(boughtEarly[from]){
-                    _taxFee = _taxFee * 1;
-                    _liquidityFee = _liquidityFee * 1;
+                                                 
+                if(boughtEarly[from]){               // 4x tax if bought in the same block as trading active for 48 hours
+                    _taxFee = _taxFee * 4;
+                    _liquidityFee = _liquidityFee * 4;
                 }
-        
+           
             } else {
                 removeAllFee();
             }
@@ -1016,6 +1021,8 @@ contract KittyShiba is Context, IERC20, Ownable {
     function swapBack() private lockTheSwap {
         uint256 contractBalance = balanceOf(address(this));
         uint256 totalTokensToSwap = _liquidityTokensToSwap.add(_buyBackTokensToSwap).add(_marketingTokensToSwap);
+        
+        // Halve the amount of liquidity tokens
         uint256 tokensForLiquidity = _liquidityTokensToSwap.div(2);
         uint256 amountToSwapForBNB = contractBalance.sub(tokensForLiquidity);
         
@@ -1048,6 +1055,8 @@ contract KittyShiba is Context, IERC20, Ownable {
         
         addLiquidity(tokensForLiquidity, bnbForLiquidity);
         emit SwapAndLiquify(amountToSwapForBNB, bnbForLiquidity, tokensForLiquidity);
+        
+        // any remnants after adding liquidity send to Marketing wallet
         (success,) = address(marketingAddress).call{value: address(this).balance}("");
     }
     
@@ -1058,7 +1067,7 @@ contract KittyShiba is Context, IERC20, Ownable {
         _approve(address(this), address(uniswapV2Router), tokenAmount);
         uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
-            0, // accept any amount of BNB
+            0, // accept any amount of ETH
             path,
             address(this),
             block.timestamp
@@ -1340,7 +1349,7 @@ contract KittyShiba is Context, IERC20, Ownable {
         _buyLiquidityFee = buyLiquidityFee;
         _buyMarketingFee = buyMarketingFee;
         _buyBuybackFee = buyBuybackFee;
-        require(_buyTaxFee + _buyLiquidityFee + _buyMarketingFee + _buyBuybackFee <= 10, "Must keep taxes below 10%");  // User protection from @Dev's fishy activities.
+        require(_buyTaxFee + _buyLiquidityFee + _buyMarketingFee + _buyBuybackFee <= 20, "Must keep taxes below 20%");
     }
 
     function setSellFee(uint256 sellTaxFee, uint256 sellLiquidityFee, uint256 sellMarketingFee, uint256 sellBuybackFee)
@@ -1351,7 +1360,7 @@ contract KittyShiba is Context, IERC20, Ownable {
         _sellLiquidityFee = sellLiquidityFee;
         _sellMarketingFee = sellMarketingFee;
         _sellBuybackFee = sellBuybackFee;
-        require(_sellTaxFee + _sellLiquidityFee + _sellMarketingFee + _sellBuybackFee <= 13, "Must keep taxes below 13%");  // User protection from @Dev's fishy activities.
+        require(_sellTaxFee + _sellLiquidityFee + _sellMarketingFee + _sellBuybackFee <= 30, "Must keep taxes below 30%");
     }
 
     function setMarketingAddress(address _marketingAddress) external onlyOwner {
