@@ -1,2 +1,2 @@
 # contracts
-Smart contract for Doge King
+Smart contract for Kitty Shiba
