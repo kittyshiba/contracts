@@ -601,7 +601,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract KittyShibax is Context, IERC20, Ownable {
+contract KittyShibak is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -677,7 +677,7 @@ contract KittyShibax is Context, IERC20, Ownable {
 
     mapping (address => bool) public automatedMarketMakerPairs;
 
-    uint256 private minimumTokensBeforeSwap = _tTotal * 3 / 10000; // 0.03%
+    uint256 private minimumTokensBeforeSwap = _tTotal * 3 / 100000; // 0.003%
 
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;

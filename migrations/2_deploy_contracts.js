@@ -1,4 +1,4 @@
-const KShiba = artifacts.require("KittyShibax");
+const KShiba = artifacts.require("KittyShibak");
 module.exports = function(deployer) {
   deployer.deploy(KShiba);
 };
